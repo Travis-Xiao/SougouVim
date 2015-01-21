@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+ <extension> 
+ <id>com.travis.helloworld</id> 
+ <name>你好地球</name> 
+ <show_icon>true</show_icon> 
+ <description>点击按钮后在气泡中显示Hello World</description> 
+ <popup page="popup.html" width="100" height="100"/> 
+ <version>0.1</version>
+ <request_api_version>1</request_api_version>
+ <author>Travis</author>
+ </extension>
