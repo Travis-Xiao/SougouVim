@@ -1,0 +1,17 @@
+.vimiumHintMarker {
+	position: absolute;
+	display: block;
+	white-space: nowrap;
+	overflow: hidden;
+	font-size: 11px;
+	padding: 1px 3px 0px;
+	background: -webkit-gradient(linear, 0% 0%, 0% 100%, from(rgb(255, 247, 133)), to(rgb(255, 197, 66)));
+	border: 1px solid rgb(195, 138, 34);
+	border-image-source: initial;
+	border-image-slice: initial;
+	border-image-width: initial;
+	border-image-outset: initial;
+	border-image-repeat: initial;
+	border-radius: 3px;
+	box-shadow: rgba(0, 0, 0, 0.298039) 0px 3px 7px 0px;
+}
