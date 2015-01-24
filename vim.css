@@ -14,4 +14,9 @@
 	border-image-repeat: initial;
 	border-radius: 3px;
 	box-shadow: rgba(0, 0, 0, 0.298039) 0px 3px 7px 0px;
+	z-index: 100;
+}
+
+.matchingCharacter {
+	color: rgb(212, 172, 58);
 }

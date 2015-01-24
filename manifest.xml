@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
  <extension> 
- <id>com.travis.helloworld</id> 
- <name>你好地球</name> 
+ <id>com.travis.sougouvim</id> 
+ <name>Vimize Sougou</name> 
  <show_icon>true</show_icon> 
- <description>点击按钮后在气泡中显示Hello World</description> 
+ <description>Sougou Vim</description> 
 <content_scripts> 
    <content_script all_frames="true"> 
        <match>http://*/*</match> 
