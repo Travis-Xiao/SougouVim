@@ -20,3 +20,10 @@
 .matchingCharacter {
 	color: rgb(212, 172, 58);
 }
+
+.vimiumSearchInput {
+	position: fixed;
+	bottom: 10px;
+	min-height: 12px;
+	min-width: 30px;
+}

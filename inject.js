@@ -1,13 +1,34 @@
 console.log("injected");
+
 (function() {
 	var y_step = 40;
 	var x_step = 40;
 	var scrolling = false;
 	var semaphore = 0;
 	var vimiumHintMarkerContainer;
-	var mode = 0; // 0: view mode; 1: selection mode
+	var mode = 0; // 0: view mode; 1: selection mode; 2: search mode
 	var hintTokens, entries, filteredEntries;
-	var firstChar = '';
+	var firstChar = "";
+	var searchRegex = "";
+	var searchInput = $("<div class='vimiumSearchInput'><input id='vimiumSearchBox' type='text'/></div>").appendTo($('body')).hide();
+	var searchResults = {
+		matches: [],
+		pointer: 0,
+		go: function (direction) {
+			if (this.matches.length) {
+				this.pointer = (direction + this.pointer + this.matches.length) % this.matches.length;
+				console.log(this.matches[this.pointer]);
+				window.scrollTo(0, $(this.matches[this.pointer]).offset().top);
+			}
+		},
+	};
+
+	searchInput.on('keypress', function (e) {
+		if (e.keyCode == 13) {
+			startSearch($(this).children().val());
+			exitSearchMode();
+		}
+	});
 
 	var retrieveCandidates = function() {
 		// TODO 
@@ -57,10 +78,46 @@ console.log("injected");
 		});
 	};
 
+	var recursiveSearch = function (node) {
+		var nodes = node.children;
+		for (var i = 0; i < nodes.length; i ++) {
+			var n = $(nodes[i]);
+			if ((n.text() + "").toLowerCase().indexOf(searchRegex) != -1) {
+				var k = searchResults.matches.indexOf(n.parent());
+				searchResults.matches[k == -1 ? (searchResults.matches.length) : k] = n[0];
+			}
+			recursiveSearch(nodes[i]);
+		}
+	};
+
 	var hideCandidates = function() {
 		mode = 0;
 		firstChar = '';
 		vimiumHintMarkerContainer.remove();
+	};
+
+	var exitSearchMode = function () {
+		mode = 0;
+		searchInput.hide();
+	};
+
+	var back2ViewMode = function () {
+		if (mode == 1) {
+			hideCandidates();
+		} else if (mode == 2) {
+			exitSearchMode();
+		}
+	};
+
+	var startSearch = function (regex) {
+		searchResults.matches = [];
+		searchResults.pointer = 0;
+		searchRegex = searchInput.children().val().toLowerCase() + "";
+		if (searchRegex == "") {
+			return;
+		}
+		recursiveSearch($('body')[0]);
+
 	};
 
 	var showHelpPanel = function () {
@@ -77,42 +134,99 @@ console.log("injected");
 	var viewModeProcessor = function(keyCode) {
 		console.log(keyCode);
 		switch (keyCode) {
+			case 72:
+				// H: go back in history
+				history.go(-1);
+				break;
+			case 76:
+				// L: go forward in history
+				history.go(1);
+				break;
 			case 74:
-				// J
+				// J: switch to the left tab
 				switch2Tab(-1);
 				break;
 			case 75:
-				// K
+				// K: switch to the right tab
 				switch2Tab(1);
 				break;
 			case 106:
-				// j
+				// j: scroll down
 				window.scrollBy(0, y_step);
 				break;
 			case 107:
-				// k
+				// k: scroll up
 				window.scrollBy(0, -y_step);
 				break;
 			case 104:
-				// h
+				// h: scroll left
 				window.scrollBy(-x_step, 0);
 				break;
 			case 108:
-				// l
+				// l: scroll right
 				window.scrollBy(x_step, 0);
 				break;
 			case 102:
-				// f
+				// f: show all available entries
 				mode = 1;
 				showCandidates();
 				break;
+			case 114:
+				// r: reload the page
+				parent.location.reload();
+				break;
 			case 120:
-				// x
+				// x: close the tab
 				sogouExplorer.extension.sendMessage({command: "close"});
 				break;
+			case 117:
+				// u: scroll up half page height
+				console.log("scroll up");
+				window.scrollBy(0, -window.innerHeight / 2);
+				break;
+			case 100:
+				// d: scroll down half page height
+				console.log("scroll down");
+				window.scrollBy(0, window.innerHeight / 2);
+				break;
+			case 85:
+				// U: scroll up one page height
+				window.scrollBy(0, - window.innerHeight);
+				break;
+			case 68:
+				// D: scroll down one page height
+				window.scrollBy(0, window.innerHeight);
+				break;
 			case 63:
-				// ?
+				// ?: show help panel
 				showHelpPanel();
+				break;
+			case 116:
+				// t: create a new tab
+				sogouExplorer.extension.sendMessage({
+					command: "new",
+				});
+				break;
+			case 84:
+				// T: restored last tab
+				console.log("restore");
+				sogouExplorer.extension.sendMessage({
+					command: "restore",
+				});
+				break;
+			case 47:
+				// /: enter search mode
+				mode = 2;
+				searchInput.show().children().val("").focus();
+				break;
+			case 78:
+				// N: previous search match
+				searchResults.go(-1);
+				break;
+			case 110:
+				// n: next search match
+				searchResults.go(1);
+				break;
 			default:
 				break;
 		}
@@ -121,7 +235,6 @@ console.log("injected");
 	var filterEntries = function() {
 		filteredEntries = [];
 		entries.each(function(index, elem) {
-			// console.log(elem);
 			var offset = $(elem).offset();
 			if (offset.top >= window.scrollY && offset.top <= (window.scrollY + window.innerHeight) && offset.left >= window.scrollX && offset.left <= (window.scrollX + window.innerWidth)) {
 				filteredEntries.push(elem);
@@ -131,7 +244,6 @@ console.log("injected");
 
 	var openLink = function(target) {
 		var entry = filteredEntries[target];
-		// console.log(entry);
 		switch (entry.tagName) {
 			case "INPUT":
 				if (["text", "password"].indexOf(entry.type) != -1) {
@@ -151,7 +263,8 @@ console.log("injected");
 		var elem = document.activeElement;
 		return (elem.tagName == "INPUT" && ["text", "password"].indexOf(elem.type) != -1)
 			|| (elem.tagName == "TEXTAREA")
-			|| elem.contentEditable == "true";
+			|| elem.contentEditable == "true"
+			|| elem.id == "vimiumSearchBox";
 	};
 
 	var selectionModeProcessor = function(keyCode) {
@@ -166,7 +279,6 @@ console.log("injected");
 			if (token.substr(0, prefix.length) == prefix) {
 				var hint = vimiumHintMarkerContainer.children().get(i);
 				if (hint) {
-					// console.log(token);
 					var c = $(hint).children().get(firstChar.length);
 					$(c).addClass('matchingCharacter');
 					matched = true;
@@ -185,36 +297,39 @@ console.log("injected");
 		}
 	};
 
-	window.addEventListener('keyup', function(e) {
+	window.onkeyup = function(e) {
 		switch (e.keyCode) {
 			case 27:
 				// esc
-				// console.log("esc");
-				hideCandidates();
+				back2ViewMode();
 				break;
 			default:
 				break;
 		}
-	});
+	};
 
-	window.addEventListener('keypress', function(e) {
+	window.onkeypress = function(e) {
 		e = e || window.event;
 		// console.log(e.keyCode);
 		if (isEditable()) {
-			console.log("input focused");
 			return;
 		}
-
 		if (e.ctrlKey || e.altKey)
 			return;
-		if (mode) {
-			selectionModeProcessor(e.keyCode);
-		} else {
-			viewModeProcessor(e.keyCode);
+		var c = e.keyCode;
+		switch (mode) {
+		case 0:
+			viewModeProcessor(c);
+			break;
+		case 1:
+			selectionModeProcessor(c);
+			break;
+		default:
+			break;
 		}
 		e.preventDefault();
 		e.stopPropagation();
-	});
+	};
 	generateTokens(26 * 26);
 	console.log("listeners added");
 })();
