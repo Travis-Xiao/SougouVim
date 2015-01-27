@@ -69,11 +69,10 @@ sogouExplorer.tabs.onUpdated.addListener(
             visits.urls[k] = tab.url;
             // console.log("visits updated: " + tabId + " " + changeInfo.url);
         }
-        console.log("inject");
 
         sogouExplorer.tabs.executeScript(tabId, {
             file: "inject.js",
-        }, function() {});
+        }, function(r) {});
         sogouExplorer.tabs.insertCSS(tabId, {
             file: "vim.css",
         });
@@ -93,10 +92,10 @@ sogouExplorer.extension.onMessage.addListener(
             case "new":
                 sogouExplorer.tabs.create({
                     selected: true,
+                    url: request.url,
                 });
                 break;
             case "restore":
-                console.log("restore");
                 if (history.length) {
                     sogouExplorer.tabs.create({
                         url: history.pop(),
@@ -104,13 +103,20 @@ sogouExplorer.extension.onMessage.addListener(
                     });
                 }
                 break;
+            case "getBookmarks":
+                sogouExplorer.bookmarks.getTree(function (bookmarkTree) {
+                    sendResponse({
+                        bookmarks: bookmarkTree
+                    });
+                });
+                break;
             default:
                 break;
         }
     });
 
-sogouExplorer.browserAction.setPopup({
-    popup: "popup.html",
-    width: 150,
-    height: 60,
-});
+// sogouExplorer.browserAction.setPopup({
+//     popup: "popup.html",
+//     width: 300,
+//     height: 60,
+// });

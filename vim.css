@@ -1,4 +1,4 @@
-.vimiumHintMarker {
+.vHintMarker {
 	position: absolute;
 	display: block;
 	white-space: nowrap;
@@ -14,16 +14,127 @@
 	border-image-repeat: initial;
 	border-radius: 3px;
 	box-shadow: rgba(0, 0, 0, 0.298039) 0px 3px 7px 0px;
-	z-index: 100;
+	z-index: 2147483645;
 }
 
 .matchingCharacter {
 	color: rgb(212, 172, 58);
 }
 
-.vimiumSearchInput {
+.vSearchInput {
 	position: fixed;
 	bottom: 10px;
 	min-height: 12px;
 	min-width: 30px;
+}
+
+.vbrowseBar {
+	position: fixed;
+	display: block;;
+	width: 80%;
+	min-width: 400px;
+	top: 70px;
+	left: 50%;
+	margin: 0px 0px 0px -40%;
+	z-index: 2147483645;
+	background: rgb(241,241,241);
+	text-align: left;
+	border-radius: 4px;
+	box-shadow: rgba(0, 0, 0, 0.8) 0px 2px 10px;
+	border: 1px solid rgb(170, 170, 170);
+	bottom: auto;
+}
+
+.browseFrame {
+	display: block;
+	padding: 10px;
+	background-color: rgb(241,241,241);
+	border-radius: 4px
+	border-bottom: 1px solid rgb(198, 201, 206);
+}
+
+.browseBox {
+	background-color: #d1d1d1;
+	font-size: 20px;
+	height: 34px;
+	padding: 4px;
+	margin: 0 0;
+	border-radius: 3px;
+	outline: none;
+	display: inline;
+	float: none;
+	position: static;
+	right: auto;
+	text-align: left;
+	padding: 1px 0px;
+	padding-left: 5px;
+	width: 99%;
+}
+
+.vBookmarkHintContainer {
+	padding: 10px;
+}
+
+.vBookmarkHint {
+	font-size: 1.5em;
+	padding-left: 17px;
+}
+
+.vactive {
+	background-color: rgb(191,191,191);
+}
+
+.vhelpPanel {
+	position: fixed;
+	top: 20%;
+	display: block;
+	text-align: center;
+	background-color: aliceblue;
+	border: 1px solid;
+	padding: 10px;
+	font-size: 1.2em;
+	width: 60%;
+	left: 50%;
+	margin-left: -30%;
+	border: 2px solid black;
+	border-radius: 17px;
+	opacity: 0.86;
+	z-index: 2147483645;
+	background-image: -webkit-gradient(linear, center top, center bottom, from(#fcfcfc), to(#bfbfbf), color-stop(3%, #f7f7f7), color-stop(12%, #f2f2f2), color-stop(90%, #d9d9d9));
+	background-image: -webkit-linear-gradient(top, #fcfcfc, #f7f7f7 3%, #f2f2f2 12%, #d9d9d9 90%, #bfbfbf);
+	background-image: -moz-linear-gradient(top, #fcfcfc, #f7f7f7 3%, #f2f2f2 12%, #d9d9d9 90%, #bfbfbf);
+	background-image: -o-linear-gradient(top, #fcfcfc, #f7f7f7 3%, #f2f2f2 12%, #d9d9d9 90%, #bfbfbf);
+	background-image: -ms-linear-gradient(top, #fcfcfc, #f7f7f7 3%, #f2f2f2 12%, #d9d9d9 90%, #bfbfbf);
+	background-image: linear-gradient(to bottom, #fcfcfc, #f7f7f7 3%, #f2f2f2 12%, #d9d9d9 90%, #bfbfbf);
+	-webkit-box-shadow: 0 4px 19px 4px rgba(0,0,0,0.6);
+	-moz-box-shadow: 0 4px 19px 4px rgba(0,0,0,0.6);
+	box-shadow: 0 4px 19px 4px rgba(0,0,0,0.6);
+}
+
+.vHelpItemKey {
+	color: rgb(47, 80, 142);
+}
+
+.vHelpItemDesc {
+	text-align: left;
+	padding-left: 10px;
+}
+
+.vtable {
+	display: inline;
+	width: 30%;
+}
+
+.vtable_right{
+	margin-right: 20%;
+	float: right;
+}
+
+.vtable_left {
+	margin-left: 20%;
+	float: left;
+}
+
+.searchFocus {
+	color: red;
 }

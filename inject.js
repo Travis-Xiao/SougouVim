@@ -1,252 +1,279 @@
-console.log("injected");
+"use strict";
+var KeyBindings = KeyBindings || {};
 
-(function() {
-	var y_step = 40;
-	var x_step = 40;
-	var scrolling = false;
-	var semaphore = 0;
-	var vimiumHintMarkerContainer;
-	var mode = 0; // 0: view mode; 1: selection mode; 2: search mode
-	var hintTokens, entries, filteredEntries;
-	var firstChar = "";
-	var searchRegex = "";
-	var searchInput = $("<div class='vimiumSearchInput'><input id='vimiumSearchBox' type='text'/></div>").appendTo($('body')).hide();
-	var searchResults = {
-		matches: [],
-		pointer: 0,
-		go: function (direction) {
-			if (this.matches.length) {
-				this.pointer = (direction + this.pointer + this.matches.length) % this.matches.length;
-				console.log(this.matches[this.pointer]);
-				window.scrollTo(0, $(this.matches[this.pointer]).offset().top);
+var Viminizer = {
+	y_step: 40,
+	x_step: 40,
+	mode: 0, // 0: view mode; 1: selection mode; 2: search mode, 3: browse mode, 4: help mode
+	hintTokens: [],
+	entries: [],
+	filteredEntries: [],
+	firstChar: "",
+	searchRegex: "",
+	editableInputs: ["text", "password", "search", "email"],
+	vHintMarkerContainer: null,
+	searchInput: null,
+	browseInput: null,
+	vBookmarkHintContainer: null,
+	vBookmarkHintInput: null,
+	bookmarks: null,
+	helpPanel: null,
+	init : function () {
+		this.generateHelpPanel();
+
+		this.vHintMarkerContainer = $('<div id=vHintMarkerContainer>').appendTo($("body")).hide();
+		this.searchInput = $("<div class='vSearchInput'><input id='vHintMarkerContainer' type='text'/></div>").appendTo($("body")).hide();
+
+		var that = this;
+		this.searchInput.on('keypress', function (e) {
+			if (e.keyCode == 13) {
+				that.startSearch($(this).children().val());
+				that.exitSearchMode();
 			}
-		},
-	};
+		});
 
-	searchInput.on('keypress', function (e) {
-		if (e.keyCode == 13) {
-			startSearch($(this).children().val());
-			exitSearchMode();
+		this.browseInput = $("<div class='vbrowseBar'><div class='browseFrame'></div></div>").appendTo($("body")).hide();
+		this.vBookmarkHintInput = $("<input class='browseBox' id='browseBox' type='text'/>").appendTo(this.browseInput.children())
+		.blur(function (e) {
+			that.exitBrowseMode();
+		})
+		.keyup(function (e) {
+			var c = that.vBookmarkHintContainer.children();
+			if (e.keyCode == 40 || e.keyCode == 38) {
+				var index = c.index($(".vBookmarkHint.vactive"));
+				var node = c.get((index - 39 + e.keyCode + c.length) % c.length);
+				index != -1 && $(c.get(index)).removeClass("vactive");
+				node && $(node).addClass("vactive");
+				var regex = new RegExp($(this).val());
+				that.vBookmarkHintInput.val(node.innerHTML);
+				// var match = regex.exec(node.innerHTML);
+				var input = document.getElementById("browseBox");
+				// input && input.setSelectionRange(0, 9999);
+				e.preventDefault();
+				e.stopPropagation();
+				return;
+			} else if (e.keyCode == 13) {
+				sogouExplorer.extension.sendMessage({
+					command: "new",
+					url: $(this).val(),
+				});
+				return;
+			}
+			c.remove();
+			try {
+				var regex = new RegExp($(this).val());
+				that.searchBookmarkTree(that.bookmarks, regex);
+			} catch (err) {}
+		});
+		this.vBookmarkHintContainer = $("<div class='vBookmarkHintContainer'></div>").appendTo(this.browseInput);
+
+		window.onkeyup = function(e) {
+			switch (e.keyCode) {
+				case 27:
+					// esc
+					that.back2ViewMode();
+					break;
+				default:
+					break;
+			}
+		};
+
+		window.onkeypress = function(e) {
+			e = e || window.event;
+			if (that.isEditable()) {
+				return;
+			}
+			if (e.ctrlKey || e.altKey)
+				return;
+			var c = e.keyCode;
+			switch (that.mode) {
+			case 0:
+				that.viewModeProcessor(c);
+				break;
+			case 1:
+				that.selectionModeProcessor(c);
+				break;
+			default:
+				break;
+			}
+			e.preventDefault();
+			e.stopPropagation();
+		};
+		that.generateTokens(26 * 26);
+	},
+
+	generateHelpPanel : function () {
+		this.helpPanel = $("<div class='vhelpPanel'></div>").appendTo($("body")).hide();
+		// var container = $("<div class='vHelpContainer'></div>").appendTo(this.helpPanel);
+		var left_table = $("<table class='vtable vtable_left'></table>").appendTo(this.helpPanel);
+		var right_table = $("<table class='vtable vtable_right'></table>").appendTo(this.helpPanel);
+		var i = 0;
+		for (var e in KeyBindings) {
+			if (e) {
+				$("<tr class='vHelpItem'></tr>").append($("<td class='vHelpItemDetail vHelpItemKey'>" + (String.fromCharCode(KeyBindings[e])) + "</td>"))
+				.append($("<td class='vHelpItemDetail'>:</td>"))				
+				.append($("<td class='vHelpItemDetail vHelpItemDesc'>" + (e[0].toUpperCase() + e.substr(1, 99)).replace(/_/g, " ") + "</td>"))
+				.appendTo((i % 2) ? right_table : left_table);
+				i += 1;
+			}
 		}
-	});
+	},
 
-	var retrieveCandidates = function() {
+	searchBookmarkTree : function (nodes, regex) {
+		var that = this;
+		nodes && nodes.forEach(function (bookmark, index) {
+			if (bookmark.url && bookmark.url != "" && regex.test(bookmark.url)) {
+				that.vBookmarkHintContainer.append($("<div class='vBookmarkHint'>" + bookmark.url + "</div>"));
+			}
+			that.searchBookmarkTree(bookmark.children, regex);
+		})
+	},
+
+	retrieveCandidates : function() {
 		// TODO 
 		// Including all buttons, inputs and others else
-		entries = $("a, :input, :button");
-	};
+		this.entries = $("a, :input, :button");
+	},
 
-	var num2Char = function(num) {
+	num2Char : function(num) {
 		return num >= 27 || num < 0 ? "" : String.fromCharCode(65 + num);
-	};
+	},
 
-	var randomPair = function(length) {
+	randomPair : function(length) {
 		return [Math.floor(length * Math.random()), Math.floor(length * Math.random())];
-	};
+	},
 
-	var generateTokens = function(length) {
-		hintTokens = [];
+	generateTokens : function(length) {
+		this.hintTokens = [];
 		for (var i = 0; i < length; i++) {
-			hintTokens[i] = "" + num2Char(Math.floor(i / 27)) + num2Char((i % 26));
+			this.hintTokens[i] = "" + this.num2Char(Math.floor(i / 27)) + this.num2Char((i % 26));
 		}
 		// Shuffle
 		for (var i = 0; i < length / 1.5 + 30 * Math.random(); i++) {
-			var pair = randomPair(length);
-			var t = hintTokens[pair[0]];
-			hintTokens[pair[0]] = hintTokens[pair[1]];
-			hintTokens[[pair[1]]] = t;
+			var pair = this.randomPair(length);
+			var t = this.hintTokens[pair[0]];
+			this.hintTokens[pair[0]] = this.hintTokens[pair[1]];
+			this.hintTokens[[pair[1]]] = t;
 		}
-	};
+	},
 
-	var showCandidates = function() {
-		vimiumHintMarkerContainer = $('<div id=vimiumHintMarkerContainer>').appendTo($('body'));
-
-		retrieveCandidates();
-		filterEntries();
-		$(filteredEntries).each(function(index, elem) {
+	showCandidates : function() {
+		this.vHintMarkerContainer = $('<div id=vHintMarkerContainer>').appendTo($('body'));
+		this.retrieveCandidates();
+		this.filterEntries();
+		var that = this;
+		$(this.filteredEntries).each(function(index, elem) {
 			var marker = $("<div>");
 			var offset = $(elem).offset();
-			marker.css({
-				left: offset.left,
-				top: offset.top,
-			});
-			var token = hintTokens[index];
-			for (var i = 0; i < token.length; i++) {
-				$('<span>').addClass("vimiumReset").text(token[i]).appendTo(marker);
+			if (offset.left || offset.top) {
+				marker.css({
+					left: offset.left,
+					top: offset.top,
+				});
+				var token = that.hintTokens[index];
+				for (var i = 0; i < token.length || 0; i++) {
+					$('<span>').addClass("vReset").text(token[i]).appendTo(marker);
+				}
+				marker.addClass("vHintMarker").appendTo(that.vHintMarkerContainer);
 			}
-			marker.addClass("vimiumHintMarker").appendTo(vimiumHintMarkerContainer);
 		});
-	};
+	},
 
-	var recursiveSearch = function (node) {
+	recursiveSearch : function (node) {
 		var nodes = node.children;
 		for (var i = 0; i < nodes.length; i ++) {
 			var n = $(nodes[i]);
-			if ((n.text() + "").toLowerCase().indexOf(searchRegex) != -1) {
-				var k = searchResults.matches.indexOf(n.parent());
-				searchResults.matches[k == -1 ? (searchResults.matches.length) : k] = n[0];
+			if ((n.text() + "").toLowerCase().indexOf(this.searchRegex) != -1) {
+				var k = this.searchResults.matches.indexOf(n.parent());
+				this.searchResults.matches[k == -1 ? (this.searchResults.matches.length) : k] = n[0];
 			}
-			recursiveSearch(nodes[i]);
+			this.recursiveSearch(nodes[i]);
 		}
-	};
+	},
 
-	var hideCandidates = function() {
-		mode = 0;
-		firstChar = '';
-		vimiumHintMarkerContainer.remove();
-	};
+	hideCandidates : function() {
+		this.mode = 0;
+		this.firstChar = '';
+		this.vHintMarkerContainer.remove();
+	},
 
-	var exitSearchMode = function () {
-		mode = 0;
-		searchInput.hide();
-	};
+	exitBrowseMode : function () {
+		this.browseInput.hide();
+		this.vBookmarkHintContainer.children().remove();
+		this.mode = 0;
+	},
 
-	var back2ViewMode = function () {
-		if (mode == 1) {
-			hideCandidates();
-		} else if (mode == 2) {
-			exitSearchMode();
+	exitSearchMode : function () {
+		this.mode = 0;
+		this.searchInput.hide();
+		this.searchResults.die();
+	},
+
+	exitHelpMode : function () {
+		this.helpPanel.hide();
+		this.mode = 0;
+	},
+
+	back2ViewMode : function () {
+		switch (this.mode) {
+		case 1:
+			this.hideCandidates();
+			break;
+		case 2:
+			this.exitSearchMode();
+			break;
+		case 3:
+			this.exitBrowseMode();
+			break;
+		case 4:
+			this.exitHelpMode();
+			break;
+		default:
+			break;
 		}
-	};
+	},
 
-	var startSearch = function (regex) {
-		searchResults.matches = [];
-		searchResults.pointer = 0;
-		searchRegex = searchInput.children().val().toLowerCase() + "";
-		if (searchRegex == "") {
+	startSearch : function (regex) {
+		this.searchResults.matches = [];
+		this.searchResults.pointer = 0;
+		this.searchRegex = this.searchInput.children().val().toLowerCase() + "";
+		if (this.searchRegex == "") {
 			return;
 		}
-		recursiveSearch($('body')[0]);
+		this.recursiveSearch($('body')[0]);
+	},
 
-	};
+	showHelpPanel : function () {
+		this.helpPanel.show();
+		this.mode = 4;
+	},
 
-	var showHelpPanel = function () {
-
-	};
-
-	var switch2Tab = function (direction) {
+	switch2Tab : function (direction) {
 		sogouExplorer.extension.sendMessage({
 			command: "switch",
 			direction: direction,
 		});
-	};
+	},
 
-	var viewModeProcessor = function(keyCode) {
-		console.log(keyCode);
-		switch (keyCode) {
-			case 72:
-				// H: go back in history
-				history.go(-1);
-				break;
-			case 76:
-				// L: go forward in history
-				history.go(1);
-				break;
-			case 74:
-				// J: switch to the left tab
-				switch2Tab(-1);
-				break;
-			case 75:
-				// K: switch to the right tab
-				switch2Tab(1);
-				break;
-			case 106:
-				// j: scroll down
-				window.scrollBy(0, y_step);
-				break;
-			case 107:
-				// k: scroll up
-				window.scrollBy(0, -y_step);
-				break;
-			case 104:
-				// h: scroll left
-				window.scrollBy(-x_step, 0);
-				break;
-			case 108:
-				// l: scroll right
-				window.scrollBy(x_step, 0);
-				break;
-			case 102:
-				// f: show all available entries
-				mode = 1;
-				showCandidates();
-				break;
-			case 114:
-				// r: reload the page
-				parent.location.reload();
-				break;
-			case 120:
-				// x: close the tab
-				sogouExplorer.extension.sendMessage({command: "close"});
-				break;
-			case 117:
-				// u: scroll up half page height
-				console.log("scroll up");
-				window.scrollBy(0, -window.innerHeight / 2);
-				break;
-			case 100:
-				// d: scroll down half page height
-				console.log("scroll down");
-				window.scrollBy(0, window.innerHeight / 2);
-				break;
-			case 85:
-				// U: scroll up one page height
-				window.scrollBy(0, - window.innerHeight);
-				break;
-			case 68:
-				// D: scroll down one page height
-				window.scrollBy(0, window.innerHeight);
-				break;
-			case 63:
-				// ?: show help panel
-				showHelpPanel();
-				break;
-			case 116:
-				// t: create a new tab
-				sogouExplorer.extension.sendMessage({
-					command: "new",
-				});
-				break;
-			case 84:
-				// T: restored last tab
-				console.log("restore");
-				sogouExplorer.extension.sendMessage({
-					command: "restore",
-				});
-				break;
-			case 47:
-				// /: enter search mode
-				mode = 2;
-				searchInput.show().children().val("").focus();
-				break;
-			case 78:
-				// N: previous search match
-				searchResults.go(-1);
-				break;
-			case 110:
-				// n: next search match
-				searchResults.go(1);
-				break;
-			default:
-				break;
-		}
-	};
-
-	var filterEntries = function() {
-		filteredEntries = [];
-		entries.each(function(index, elem) {
+	filterEntries : function() {
+		this.filteredEntries = [];
+		var that = this;
+		this.entries.each(function(index, elem) {
 			var offset = $(elem).offset();
 			if (offset.top >= window.scrollY && offset.top <= (window.scrollY + window.innerHeight) && offset.left >= window.scrollX && offset.left <= (window.scrollX + window.innerWidth)) {
-				filteredEntries.push(elem);
+				that.filteredEntries.push(elem);
 			}
 		});
-	};
+	},
 
-	var openLink = function(target) {
-		var entry = filteredEntries[target];
+	openLink : function(target) {
+		var entry = this.filteredEntries[target];
 		switch (entry.tagName) {
+			case "TEXTAREA":
+				$(entry).focus();
+				break;
 			case "INPUT":
-				if (["text", "password"].indexOf(entry.type) != -1) {
+				if (this.editableInputs.indexOf(entry.type) != -1) {
 					$(entry).focus();
 					break;
 				}
@@ -257,79 +284,152 @@ console.log("injected");
 			default:
 				break;
 		}
-	};
+	},
 
-	var isEditable = function() {
+	isEditable : function() {
 		var elem = document.activeElement;
-		return (elem.tagName == "INPUT" && ["text", "password"].indexOf(elem.type) != -1)
+		return (elem.tagName == "INPUT" && this.editableInputs.indexOf(elem.type) != -1)
 			|| (elem.tagName == "TEXTAREA")
 			|| elem.contentEditable == "true"
-			|| elem.id == "vimiumSearchBox";
-	};
+			|| elem.id == "vHintMarkerContainer";
+	},
 
-	var selectionModeProcessor = function(keyCode) {
+	selectionModeProcessor : function(keyCode) {
 		keyCode = String.fromCharCode(keyCode).toUpperCase();
 		if (keyCode < 'A' || keyCode > 'Z') {
 			return;
 		}
 		var matched = false;
-		for (var i = 0; i < filteredEntries.length; i++) {
-			var token = hintTokens[i];
-			var prefix = firstChar + keyCode;
-			if (token.substr(0, prefix.length) == prefix) {
-				var hint = vimiumHintMarkerContainer.children().get(i);
+		for (var i = 0; i < this.filteredEntries.length; i++) {
+			var token = this.hintTokens[i];
+			var prefix = this.firstChar + keyCode;
+			if (token && token.substr(0, prefix.length) == prefix) {
+				var hint = this.vHintMarkerContainer.children().get(i);
 				if (hint) {
-					var c = $(hint).children().get(firstChar.length);
+					var c = $(hint).children().get(this.firstChar.length);
 					$(c).addClass('matchingCharacter');
 					matched = true;
-					if (firstChar != '') {
-						firstChar = '';
+					if (this.firstChar != '') {
+						this.firstChar = '';
 						matched = false;
-						hideCandidates();
-						openLink(i);
+						this.hideCandidates();
+						this.openLink(i);
 						return;
 					}
 				}
 			}
 		}
 		if (matched) {
-			firstChar = keyCode;
+			this.firstChar = keyCode;
 		}
-	};
+	},
 
-	window.onkeyup = function(e) {
-		switch (e.keyCode) {
-			case 27:
-				// esc
-				back2ViewMode();
+	viewModeProcessor : function(keyCode) {
+		switch (keyCode) {
+			case KeyBindings.enter_browse_mode:
+				this.browseInput.show().children().children().val("").focus();
+				this.vBookmarkHintContainer.children().remove();
+				this.mode = 3;
+				var that = this;
+				sogouExplorer.extension.sendMessage({
+					command: "getBookmarks",
+				}, function (response) {
+					that.bookmarks = response.bookmarks;
+				});
+				break;
+			case KeyBindings.go_back:
+				history.go(-1);
+				break;
+			case KeyBindings.go_forward:
+				history.go(1);
+				break;
+			case KeyBindings.switch_left:
+				this.switch2Tab(-1);
+				break;
+			case KeyBindings.switch_right:
+				this.switch2Tab(1);
+				break;
+			case KeyBindings.scroll_down:
+				window.scrollBy(0, this.y_step);
+				break;
+			case KeyBindings.scroll_up:
+				window.scrollBy(0, -this.y_step);
+				break;
+			case KeyBindings.scroll_left:
+				window.scrollBy(-this.y_step, 0);
+				break;
+			case KeyBindings.scroll_right:
+				window.scrollBy(this.y_step, 0);
+				break;
+			case KeyBindings.show_entries:
+				this.mode = 1;
+				this.showCandidates();
+				break;
+			case KeyBindings.reload_page:
+				parent.location.reload();
+				break;
+			case KeyBindings.close_tab:
+				sogouExplorer.extension.sendMessage({command: "close"});
+				break;
+			case KeyBindings.scroll_half_up:
+				window.scrollBy(0, -window.innerHeight / 2);
+				break;
+			case KeyBindings.scroll_half_down:
+				window.scrollBy(0, window.innerHeight / 2);
+				break;
+			case KeyBindings.scroll_page_up:
+				window.scrollBy(0, - window.innerHeight);
+				break;
+			case KeyBindings.scroll_page_down:
+				window.scrollBy(0, window.innerHeight);
+				break;
+			case KeyBindings.show_help_panel:
+				this.showHelpPanel();
+				break;
+			case KeyBindings.create_tab:
+				sogouExplorer.extension.sendMessage({
+					command: "new",
+				});
+				break;
+			case KeyBindings.restore_tab:
+				sogouExplorer.extension.sendMessage({
+					command: "restore",
+				});
+				break;
+			case KeyBindings.search_mode:
+				this.mode = 2;
+				this.searchInput.show().children().val("").focus();
+				break;
+			case KeyBindings.previous_match:
+				this.searchResults.go(-1);
+				break;
+			case KeyBindings.next_match:
+				this.searchResults.go(1);
 				break;
 			default:
+				// console.log(keyCode + " not found");
 				break;
 		}
-	};
+	},
 
-	window.onkeypress = function(e) {
-		e = e || window.event;
-		// console.log(e.keyCode);
-		if (isEditable()) {
-			return;
-		}
-		if (e.ctrlKey || e.altKey)
-			return;
-		var c = e.keyCode;
-		switch (mode) {
-		case 0:
-			viewModeProcessor(c);
-			break;
-		case 1:
-			selectionModeProcessor(c);
-			break;
-		default:
-			break;
-		}
-		e.preventDefault();
-		e.stopPropagation();
-	};
-	generateTokens(26 * 26);
-	console.log("listeners added");
-})();
+	searchResults : {
+		matches: [],
+		pointer: 0,
+		go : function (direction) {
+			if (this.matches.length) {
+				$(this.matches[this.pointer]).removeClass("searchFocus");
+				this.pointer = (direction + this.pointer + this.matches.length) % this.matches.length;
+				window.scrollTo(0, $(this.matches[this.pointer]).addClass("searchFocus").offset().top);
+			}
+		},
+		die : function () {
+			if (this.matches.length) {
+				$(this.matches[this.pointer]).removeClass("searchFocus");
+				this.matches = [];
+				this.pointer = 0;
+			}
+		},
+	},
+};
+
+Viminizer.init();

@@ -1,17 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
- <extension> 
- <id>com.travis.sougouvim</id> 
- <name>Vimize Sougou</name> 
- <show_icon>true</show_icon> 
- <description>Sougou Vim</description> 
+<extension> 
+<id>com.travis.Viminizer</id> 
+<name>Viminizer</name> 
+<show_icon>true</show_icon> 
+<description>Viminize Sougou Explorer</description> 
 <content_scripts> 
-   <content_script all_frames="true"> 
-       <match>http://*/*</match> 
-       <js>jquery-1.11.2.min.js</js> 
-   </content_script> 
- </content_scripts>
- <background page="background.html"/>
- <version>0.1</version>
- <request_api_version>1</request_api_version>
- <author>Travis</author>
- </extension>
+<content_script all_frames="true"> 
+	<match>http://*/*</match> 
+	<js>jquery-1.11.2.min.js</js>
+	<js>setting.js</js>
+</content_script> 
+</content_scripts>
+<background page="background.html"/>
+<version>1.0</version>
+<request_api_version>1</request_api_version>
+<author>Travis.Xiao</author>
+<permissions>
+	<permission>bookmarks</permission>
+</permissions>
+</extension>
